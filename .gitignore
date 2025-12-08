@@ -1,0 +1,19 @@
+# Ignore Python Secrets & Cache
+venv/
+__pycache__/
+*.pyc
+
+# Ignore Frontend Dependencies (Too big)
+frontend/node_modules/
+frontend/.next/
+frontend/.vercel/
+
+# Ignore SECRETS (Never upload these!)
+.env
+.env.local
+
+# Ignore Temporary Files
+temp_*
+*.pdf
+*.xlsx
+.DS_Store
