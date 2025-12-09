@@ -14,7 +14,7 @@ I didn't want a "black box" system. I designed a Hub-and-Spoke architecture wher
 
 Here is the flow of data through the system:
 
-```mermaid
+```mermaid```
 graph TD
     User[User Upload] --> Frontend[Next.js Dashboard]
     Frontend --> Backend[FastAPI Brain]
