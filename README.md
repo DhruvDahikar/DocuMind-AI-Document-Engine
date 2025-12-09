@@ -21,7 +21,7 @@ graph TD
     
     subgraph "The Intelligence Layer"
         Backend --> LlamaParse[LlamaParse OCR]
-        LlamaParse --> Router{The 'Sorting Hat'}
+        LlamaParse --> Router{The Sorting Hat}
         
         Router -- "It's an Invoice" --> InvoiceAgent[Invoice Specialist]
         Router -- "It's a Contract" --> ContractAgent[Contract Specialist]
@@ -36,20 +36,20 @@ graph TD
     FinalData --> DB[(Supabase Cloud DB)]
     DB --> Dashboard[User History & Analytics]
 
-1. The "Sorting Hat" (Semantic Router) 🎩
+## 1. The "Sorting Hat" (Semantic Router) 🎩
 Instead of blindly forcing every file into an invoice template, I built a router that reads the first 2,000 tokens of a document. It asks: "Is this an invoice, a receipt, or a legal contract?" and dispatches the file to the correct logic path.
 
-2. The "Math Auditor" (Self-Healing Logic) 🕵️‍♂️
+## 2. The "Math Auditor" (Self-Healing Logic) 🕵️‍♂️
 LLMs are great at reading, but bad at math. I noticed Gemini sometimes hallucinated "floating" tax numbers in complex tables.
 
 My Solution: I wrote a Python layer that intercepts the JSON output. It sums up the line items and compares them to the Total.
 
 The Cool Part: If the math doesn't add up, the system calculates the exact missing difference (e.g., "72.41"), regex-searches the raw text for that number, and auto-corrects the data on the fly.
 
-3. Persistent Memory (Cloud Database) ☁️
+## 3. Persistent Memory (Cloud Database) ☁️
 I integrated Supabase (PostgreSQL) with Row-Level Security. This means users can log in, save their extraction history, and access their past documents from any device. It's a full-stack SaaS, not just a script.
 
-🛠️ The Tech Stack
+## 🛠️ The Tech Stack
 I chose these tools to balance speed, reliability, and cost:
 
 The Brain: Python 3.12 + FastAPI (Async)
