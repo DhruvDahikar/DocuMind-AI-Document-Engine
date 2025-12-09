@@ -10,6 +10,7 @@ from llama_parse import LlamaParse
 from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.core.program import LLMTextCompletionProgram
 from schemas import InvoiceSchema
+from validator import validate_and_correct
 
 nest_asyncio.apply()
 load_dotenv()
@@ -36,7 +37,7 @@ llm = GoogleGenAI(
     api_key=os.getenv("GOOGLE_API_KEY")
 )
 
-# --- ENDPOINT 1: EXTRACT DATA (The Preview) ---
+# --- ENDPOINT 1: EXTRACT DATA (Updated with Validator) ---
 @app.post("/extract-data")
 async def extract_invoice_data(file: UploadFile = File(...)):
     temp_filename = f"temp_{file.filename}"
@@ -53,6 +54,31 @@ async def extract_invoice_data(file: UploadFile = File(...)):
             llm=llm,
             prompt_template_str="Extract strict JSON data from this invoice text:\n\n{text}"
         )
+        
+        # 1. Get AI Output
+        output = program(text=pdf_text)
+        
+        # 2. Cleanup file
+        os.remove(temp_filename)
+        
+        # --- 🕵️‍♂️ ENGINEERING GUARDRAIL START ---
+        print("🤖 AI finished. Running Engineering Guardrails...")
+        
+        # Convert Pydantic object to standard Python Dict
+        data_dict = output.dict()
+        
+        # Run the Math Check & Self-Correction
+        final_data = validate_and_correct(data_dict, pdf_text)
+        # --- 🕵️‍♂️ ENGINEERING GUARDRAIL END ---
+        
+        # Return the verified data
+        return final_data 
+
+    except Exception as e:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+        print(f"❌ Error: {e}") # Added print for easier debugging
+        raise HTTPException(status_code=500, detail=str(e))
         
         output = program(text=pdf_text)
         os.remove(temp_filename)

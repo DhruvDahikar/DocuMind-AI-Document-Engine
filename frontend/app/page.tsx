@@ -92,8 +92,18 @@ export default function Home() {
           {/* Header & Toggle Controls */}
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b pb-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">{data.vendor_name}</h2>
-              <p className="text-gray-500 text-sm">Invoice #{data.invoice_number} • {data.invoice_date}</p>
+              {/* 👇 ENGINEERING BADGE 👇 */}
+{data.validation_log && (
+  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
+    data.validation_log.includes("Fixed") 
+      ? "bg-green-100 text-green-700 border-green-200" 
+      : "bg-yellow-100 text-yellow-700 border-yellow-200"
+  }`}>
+    <span>{data.validation_log.includes("Fixed") ? "✨" : "⚠️"}</span>
+    {data.validation_log}
+  </div>
+)}
+              
             </div>
             
             <div className="flex gap-3 mt-4 md:mt-0">
@@ -144,6 +154,14 @@ export default function Home() {
                       <td className="px-6 py-4 text-right font-bold">{data.currency} {item.total_price.toFixed(2)}</td>
                     </tr>
                   ))}
+                      {data.tax_amount > 0 && (
+                      <tr className="bg-gray-50 text-gray-500">
+                        <td className="px-6 py-3 font-medium text-right" colSpan={3}>Tax / VAT</td>
+                        <td className="px-6 py-3 text-right font-semibold">
+                          {data.currency} {data.tax_amount.toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
                   {/* Total Row */}
                   <tr className="bg-blue-50 border-t-2 border-blue-100">
                     <td className="px-6 py-4 font-bold text-gray-900" colSpan={3}>TOTAL INVOICE AMOUNT</td>
