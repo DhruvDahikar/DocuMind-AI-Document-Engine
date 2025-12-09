@@ -16,3 +16,18 @@ class InvoiceSchema(BaseModel):
     total_amount: float = Field(description="The final total amount including tax")
     currency: str = Field(description="The currency code (e.g., USD, EUR, INR)")
     line_items: List[LineItem] = Field(description="List of all items purchased")
+    
+    # ... existing imports ...
+
+class DocumentClassification(BaseModel):
+    """
+    Classifies the document type and confidence level.
+    """
+    document_type: str = Field(
+        description="The type of document. Options: 'invoice', 'receipt', 'contract', 'other'"
+    )
+    confidence: float = Field(
+        description="Confidence score between 0.0 and 1.0"
+    )
+    
+    

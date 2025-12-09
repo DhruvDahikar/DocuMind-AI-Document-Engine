@@ -11,6 +11,8 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.core.program import LLMTextCompletionProgram
 from schemas import InvoiceSchema
 from validator import validate_and_correct
+from schemas import InvoiceSchema, DocumentClassification
+
 
 nest_asyncio.apply()
 load_dotenv()
@@ -37,6 +39,22 @@ llm = GoogleGenAI(
     api_key=os.getenv("GOOGLE_API_KEY")
 )
 
+def classify_document(text: str):
+    print("🎩 Sorting Hat: Classifying document...")
+
+    # We only need the first 2000 chars to decide type
+    preview_text = text[:2000]
+
+    program = LLMTextCompletionProgram.from_defaults(
+        output_cls=DocumentClassification,
+        llm=llm,
+        prompt_template_str="Classify this document as 'invoice', 'receipt', 'contract', or 'other'.\n\nDocument Text:\n{text}"
+    )
+
+    output = program(text=preview_text)
+    print(f"🎩 Result: {output.document_type} ({output.confidence})")
+    return output
+
 # --- ENDPOINT 1: EXTRACT DATA (Updated with Validator) ---
 @app.post("/extract-data")
 async def extract_invoice_data(file: UploadFile = File(...)):
@@ -44,16 +62,64 @@ async def extract_invoice_data(file: UploadFile = File(...)):
     try:
         with open(temp_filename, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
+
         print(f"📄 Processing: {temp_filename}")
         documents = await parser.aload_data(temp_filename)
         pdf_text = documents[0].text
-        
-        program = LLMTextCompletionProgram.from_defaults(
-            output_cls=InvoiceSchema,
-            llm=llm,
-            prompt_template_str="Extract strict JSON data from this invoice text:\n\n{text}"
-        )
+
+        # 1. RUN THE CLASSIFIER (The Sorting Hat)
+        classification = classify_document(pdf_text)
+
+        # 2. ROUTING LOGIC
+        final_data = {}
+
+        if classification.document_type in ['invoice', 'receipt']:
+            print("⚡ Routing to: INVOICE AGENT")
+            program = LLMTextCompletionProgram.from_defaults(
+                output_cls=InvoiceSchema,
+                llm=llm,
+                prompt_template_str="Extract strict JSON data from this invoice/receipt:\n\n{text}"
+            )
+            output = program(text=pdf_text)
+            data_dict = output.dict()
+
+            # Run Guardrails only for financial docs
+            final_data = validate_and_correct(data_dict, pdf_text)
+
+        elif classification.document_type == 'contract':
+            print("📜 Routing to: CONTRACT AGENT (Stub)")
+            # TODO: Build real contract extraction later
+            final_data = {
+                "vendor_name": "CONTRACT DETECTED",
+                "total_amount": 0.00,
+                "invoice_number": "N/A",
+                "invoice_date": "N/A",
+                "line_items": [],
+                "currency": "USD",
+                "validation_log": "⚠️ Contract Mode Not Implemented Yet"
+            }
+
+        else:
+             print("❓ Unknown Document Type")
+             final_data = {
+                "vendor_name": "UNKNOWN DOCUMENT",
+                "total_amount": 0.00,
+                "invoice_number": "N/A",
+                "line_items": [],
+                "validation_log": "⚠️ File type not supported"
+            }
+
+        # Inject the detected type so Frontend knows
+        final_data['document_type'] = classification.document_type
+
+        os.remove(temp_filename)
+        return final_data
+
+    except Exception as e:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+        print(f"❌ Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
         
         # 1. Get AI Output
         output = program(text=pdf_text)

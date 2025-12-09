@@ -1,79 +1,114 @@
-# 🧠 DocuMind: Autonomous Invoice Extraction System
+# 🧠 DocuMind-AI-Document-Engine
 
-### **What is this?**
-DocuMind is an intelligent software that reads PDF invoices and automatically extracts data (like dates, vendor names, and line items) into a clean, structured format (JSON/Excel). 
+**Hi there! 👋 Welcome to my AI engineering playground.**
 
-**It is not just a standard AI wrapper.** It features a self-correcting engineering layer that mathematically validates data to prevent common AI hallucinations.
+**DocuMind** is my attempt to solve a boring real-world problem with some exciting new tech. It's an autonomous platform that ingests messy, unstructured documents (PDFs, images) and transforms them into clean, reliable data—without human help.
 
-### **The Problem**
-Businesses receive thousands of invoices in different formats. Humans have to manually type data into Excel.
-* **It is slow.**
-* **It is boring.**
-* **Humans make typos.**
-
-### **The Solution**
-DocuMind automates this. You drag-and-drop a PDF, and seconds later, you get the data. No typing required.
+It’s not just a wrapper around Gemini. I built a **Multi-Agent Architecture** that "thinks" before it extracts. It classifies documents, routes them to specialist agents, and even uses a deterministic math-layer to fact-check the AI before you ever see the result.
 
 ---
 
-## 🛠️ Engineering Highlights (Tier-1 Features)
+## 🏗️ The Architecture (How it works)
 
-This project implements a **"Hybrid Intelligence"** architecture to ensure reliability:
+I didn't want a "black box" system. I designed a Hub-and-Spoke architecture where different parts of the code handle different cognitive tasks.
 
-### 1. The Self-Correcting Validator (The "Math Check")
-AI models sometimes miss "floating" numbers like Tax or Discounts in complex layouts. DocuMind solves this deterministically:
-* **The Logic:** The system calculates `Sum(Line Items)` vs `Total Amount`.
-* **The Fix:** If the math doesn't add up, the system calculates the exact missing gap (e.g., "72.41").
-* **The Recovery:** It performs a regex search on the raw text for that specific number and retroactively fixes the dataset.
+Here is the flow of data through the system:
 
-### 2. Event-Driven Feedback Loop
-The user isn't left guessing. The UI visually communicates the system's actions:
-* ✨ **Green Badge:** "Fixed by Engineering Validator" (The code caught an error and fixed it).
-* ⚠️ **Yellow Badge:** "Manual Review Needed" (The math is off and needs human eyes).
+```mermaid
+graph TD
+    User[User Upload] --> Frontend[Next.js Dashboard]
+    Frontend --> Backend[FastAPI Brain]
+    
+    subgraph "The Intelligence Layer"
+        Backend --> LlamaParse[LlamaParse OCR]
+        LlamaParse --> Router{The 'Sorting Hat'}
+        
+        Router -- "It's an Invoice" --> InvoiceAgent[Invoice Specialist]
+        Router -- "It's a Contract" --> ContractAgent[Contract Specialist]
+        Router -- "Unknown" --> Fallback[Fallback Handler]
+        
+        InvoiceAgent --> Validator{The Math Auditor}
+        Validator -- "Math Mismatch" --> SelfHeal[Auto-Correction Regex]
+        Validator -- "Math OK" --> FinalData
+        SelfHeal --> FinalData
+    end
+    
+    FinalData --> DB[(Supabase Cloud DB)]
+    DB --> Dashboard[User History & Analytics]
 
----
+1. The "Sorting Hat" (Semantic Router) 🎩
+Instead of blindly forcing every file into an invoice template, I built a router that reads the first 2,000 tokens of a document. It asks: "Is this an invoice, a receipt, or a legal contract?" and dispatches the file to the correct logic path.
 
-## ⚙️ How It Works (The "Magic")
+2. The "Math Auditor" (Self-Healing Logic) 🕵️‍♂️
+LLMs are great at reading, but bad at math. I noticed Gemini sometimes hallucinated "floating" tax numbers in complex tables.
 
-Imagine a digital assembly line with four workers:
+My Solution: I wrote a Python layer that intercepts the JSON output. It sums up the line items and compares them to the Total.
 
-1.  **The Eyes (LlamaParse):**
-    * It looks at the PDF and understands the layout, distinguishing between tables, headers, and random text.
-    * *Analogy:* Putting on reading glasses and transcribing the messy PDF into a neat notebook.
+The Cool Part: If the math doesn't add up, the system calculates the exact missing difference (e.g., "72.41"), regex-searches the raw text for that number, and auto-corrects the data on the fly.
 
-2.  **The Brain (Google Gemini Flash):**
-    * We send that neat notebook to the AI with a strict "Blueprint." We ask it to extract specific fields.
-    * *Analogy:* The smart accountant who reads the notes and fills out the official tax form.
+3. Persistent Memory (Cloud Database) ☁️
+I integrated Supabase (PostgreSQL) with Row-Level Security. This means users can log in, save their extraction history, and access their past documents from any device. It's a full-stack SaaS, not just a script.
 
-3.  **The Auditor (Custom Python Logic):**
-    * **This is the guardrail.** It checks the accountant's math. If the numbers don't match, it sends the form back for correction before the user ever sees it.
-    * *Analogy:* The compliance officer who catches a mistake before the boss sees it.
+🛠️ The Tech Stack
+I chose these tools to balance speed, reliability, and cost:
 
-4.  **The Boss (FastAPI & Next.js):**
-    * Controls the flow and presents the final, polished result to the user via a modern web dashboard.
+The Brain: Python 3.12 + FastAPI (Async)
 
----
+The Face: Next.js 14 (React) + Tailwind CSS + Lucide Icons
 
-## 🏗️ The Technology Stack
+The Intelligence: Google Gemini Flash 1.5 (via LlamaIndex)
 
-* **Backend:** Python 3.12 & FastAPI (Async)
-* **AI Model:** Google Gemini Flash (via LlamaIndex)
-* **OCR / Parsing:** LlamaParse (Multimodal)
-* **Frontend:** Next.js 14, React, Tailwind CSS
-* **Engineering:** Custom Regex Heuristics & Pydantic Validation
+The Eyes: LlamaParse (Multimodal OCR)
 
----
+The Memory: Supabase (Postgres + Auth)
 
-## 🚀 How to Run This Project
+DevOps: Docker ready (coming soon)
 
-### 1. Start the Backend (The Brain)
-Open a terminal in the main folder:
-```bash
-# 1. Activate the sandbox (if using venv)
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-# source venv/bin/activate
+⚡ How to Run It Locally
+Want to break things? Feel free to clone this and run it yourself.
 
-# 2. Turn on the API server
+Prerequisites
+Node.js & npm
+
+Python 3.10+
+
+Keys: Google AI Studio Key, LlamaCloud Key, Supabase Project
+
+git clone
+cd DocuMind-AI-Document-Engine
+
+# Setup the environment
+# (Create a .env file with GOOGLE_API_KEY and LLAMA_CLOUD_API_KEY)
+
+# Start the server
 uvicorn api:app --reload
+
+You should see the "Sorting Hat" logs in your terminal when you upload a file!
+
+2. Spin up the Frontend 💻
+Open a new terminal window:
+
+cd frontend
+
+# Install the goods
+npm install
+
+# Setup the environment
+# (Create .env.local with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
+# Launch
+npm run dev
+
+3. Usage
+Go to http://localhost:3000, sign up (it uses your local Supabase instance), and drop in a PDF.
+
+🔮 What's Next?
+I'm not done yet. Here is what I am building next:
+
+[ ] Contract Analysis Agent: To summarize legal risks, not just extract money.
+
+[ ] Chat with Data: Adding a Vector DB so you can ask "How much did we spend on AWS last month?"
+
+[ ] Batch Processing: Drag and drop 50 files at once.
+
+Thanks for checking this out! If you have questions feel free to open an issue.
