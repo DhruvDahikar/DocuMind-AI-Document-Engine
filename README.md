@@ -1,4 +1,4 @@
-# DocuMind: Autonomous AI Document Intelligence Platform
+# DocuMind: AI Document Engine
 
 **DocuMind** is an enterprise-grade, multi-agent AI system designed to solve the "Unstructured Data Problem." It ingests chaotic documents—financial invoices, receipts, and complex legal contracts—and transforms them into structured, verifiable, and actionable intelligence.
 

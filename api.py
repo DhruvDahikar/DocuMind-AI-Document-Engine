@@ -77,7 +77,7 @@ async def extract_invoice_data(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, buffer)
 
         # 2. Parse PDF (LlamaParse)
-        print(f"📄 Step 1: Parsing PDF {temp_filename}...")
+        print(f"📄 Step 1: Parsing Document {temp_filename}...")
         try:
             documents = await parser.aload_data(temp_filename)
             pdf_text = documents[0].text

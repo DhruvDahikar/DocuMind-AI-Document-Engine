@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   FileText, CheckCircle, AlertTriangle, ShieldCheck, Download, 
-  Scale, Calendar, Users, FileWarning, Search, Zap, ArrowRight, LayoutDashboard 
+  Scale, Calendar, Users, FileWarning, Search, Zap, LayoutDashboard, XCircle, X 
 } from 'lucide-react';
 
 export default function Home() {
@@ -14,7 +14,7 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'excel' | 'json'>('excel');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -32,22 +32,33 @@ export default function Home() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) setFile(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+        setErrorMessage(null);
+        setData(null);
+    }
   };
 
   const handleUpload = async () => {
     if (!file || !user) return;
     setIsLoading(true);
+    setErrorMessage(null);
     setData(null);
+    
     const formData = new FormData();
     formData.append('file', file);
 
     try {
       const response = await fetch('http://127.0.0.1:8000/extract-data', { method: 'POST', body: formData });
+      
       if (!response.ok) {
           const errData = await response.json();
-          throw new Error(errData.detail || "Extraction failed");
+          if (response.status === 429 || JSON.stringify(errData).includes("429") || JSON.stringify(errData).includes("quota")) {
+              throw new Error("AI Usage Limit Reached. Please wait 60 seconds and try again.");
+          }
+          throw new Error(errData.detail || "Failed to process document.");
       }
+
       const result = await response.json();
       setData(result);
 
@@ -68,7 +79,7 @@ export default function Home() {
 
     } catch (err: any) {
       console.error(err);
-      alert(`Error: ${err.message || "Something went wrong"}`);
+      setErrorMessage(err.message || "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
@@ -79,19 +90,23 @@ export default function Home() {
     const endpoint = data.document_type === 'contract' ? 'generate-summary' : 'generate-excel';
     const ext = data.document_type === 'contract' ? 'txt' : 'xlsx';
     
-    const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `DocuMind_Report.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DocuMind_Report.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    } catch (e) {
+        setErrorMessage("Download failed. Backend connection lost.");
+    }
   };
 
   if (!user) return <div className="min-h-screen flex items-center justify-center text-slate-400 font-medium bg-slate-50">Loading DocuMind...</div>;
@@ -132,10 +147,6 @@ export default function Home() {
         
         {/* HERO SECTION */}
         <div className="text-center max-w-3xl mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold uppercase tracking-wider mb-6 shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                AI Agent V2.0 Live
-            </div>
             <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight">
                 Turn Documents into <br/>
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 animate-gradient">
@@ -143,7 +154,7 @@ export default function Home() {
                 </span>
             </h1>
             <p className="text-lg text-slate-500 mb-8 max-w-2xl mx-auto leading-relaxed">
-                Stop manual data entry. Upload unstructured Invoices or Contracts and let our Multi-Agent AI extract, validate, and summarize everything instantly.
+                Stop manual data entry. Upload unstructured Invoices or Contracts and let the Multi-Agent AI handle the rest.
             </p>
         </div>
 
@@ -155,7 +166,7 @@ export default function Home() {
                 <div className="relative border-2 border-dashed border-slate-300/60 rounded-xl p-10 hover:bg-blue-50/50 hover:border-blue-400/50 transition-all text-center cursor-pointer group-hover:scale-[1.01] duration-300">
                     <input 
                         type="file" 
-                        accept="application/pdf"
+                        accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png"
                         onChange={handleFileChange}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                     />
@@ -165,14 +176,31 @@ export default function Home() {
                         </div>
                         <div>
                             <p className="text-slate-700 font-bold text-lg">
-                                {file ? file.name : "Drop your PDF here"}
+                                {file ? file.name : "Drop your file here"}
                             </p>
                             <p className="text-slate-400 text-sm mt-1">
-                                {file ? "Ready to analyze" : "Invoices, Receipts, or Legal Contracts"}
+                                {file ? "Ready to analyze" : "PDF, Word (.docx), or Images (.jpg/.png)"}
                             </p>
                         </div>
                     </div>
                 </div>
+
+                {/* ERROR MESSAGE CARD (Dismissible) */}
+                {errorMessage && (
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 relative">
+                        <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                            <h4 className="text-sm font-bold text-red-800">Processing Failed</h4>
+                            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
+                        </div>
+                        <button 
+                            onClick={() => setErrorMessage(null)} 
+                            className="text-red-400 hover:text-red-700 transition p-1 hover:bg-red-100 rounded-full"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
 
                 <button 
                     onClick={handleUpload}
