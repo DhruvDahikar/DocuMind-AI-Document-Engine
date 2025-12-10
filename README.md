@@ -1,66 +1,86 @@
-# DocuMind: AI Document Intelligence Engine
+# DocuMind: Autonomous AI Document Intelligence Platform
 
-**DocuMind** is an autonomous platform engineered to ingest unstructured documents (PDFs, invoices, contracts) and transform them into structured, reliable data schemas.
+**DocuMind** is an enterprise-grade, multi-agent AI system designed to solve the "Unstructured Data Problem." It ingests chaotic documents—financial invoices, receipts, and complex legal contracts—and transforms them into structured, verifiable, and actionable intelligence.
 
-Unlike standard AI wrappers, DocuMind implements a **Hybrid Intelligence Architecture**. It combines the flexibility of Large Language Models (LLMs) with the reliability of deterministic algorithms to classify, extract, and mathematically validate financial data without human intervention.
+Unlike standard LLM wrappers that simply "guess" at data, DocuMind implements a **Hybrid Intelligence Architecture**. It fuses the creative flexibility of Large Language Models with the strict reliability of deterministic algorithms to ensure data accuracy through mathematical validation and self-correction.
 
 ---
 
-## System Architecture
+## System Architecture & Philosophy
 
-The system utilizes a Hub-and-Spoke design pattern to ensure modularity and observability. Rather than a single monolithic prompt, the architecture separates concerns into distinct cognitive tasks.
+The platform operates on a **Hub-and-Spoke** design pattern, where a central orchestration layer creates a dynamic pipeline based on the specific context of the uploaded file.
 
-### **Data Flow Visualization:**
+### 1. Ingestion & Optical Character Recognition (OCR)
+The entry point utilizes **LlamaParse**, a state-of-the-art multimodal parser capable of understanding complex layouts, tables, and nested data structures that traditional OCR tools often miss. This ensures the raw text fed into the AI is high-fidelity.
 
-```mermaid
-graph TD
-    User[User Upload] --> Frontend[Next.js Dashboard]
-    Frontend --> Backend[FastAPI Orchestrator]
-    
-    subgraph "Intelligence Layer"
-        Backend --> LlamaParse[LlamaParse OCR]
-        LlamaParse --> Router{Semantic Router}
-        
-        Router -- "Class: Invoice" --> InvoiceAgent[Invoice Extraction Agent]
-        Router -- "Class: Contract" --> ContractAgent[Contract Analysis Agent]
-        Router -- "Unknown" --> Fallback[Fallback Handler]
-        
-        InvoiceAgent --> Validator{Deterministic Auditor}
-        Validator -- "Validation Failed" --> Correction[Heuristic Error Injection]
-        Validator -- "Validation Passed" --> FinalData
-        Correction --> FinalData
-    end
-    
-    FinalData --> DB[(Supabase PostgreSQL)]
-    DB --> Dashboard[Analytics Dashboard]
-```
+### 2. The Semantic Router
+DocuMind does not require user tagging. A dedicated routing agent analyzes the initial vector embedding of the document to determine its intent:
+* **Financial Vectors:** Invoices, Purchase Orders, Receipts.
+* **Legal Vectors:** NDAs, Employment Agreements, MSA Contracts.
+* **Fallback:** Unrecognized documents are flagged for manual review.
+
 ---
 
-## Core Engineering Features
+## Specialized AI Agents
 
-### **1. Context-Aware Semantic Routing**
-To handle multi-format inputs, the system does not presume a document type. The Semantic Router analyzes the initial token vector of the incoming file to classify the document context (e.g., Financial Invoice vs. Legal Agreement).
+Once classified, the document is handed off to a specialized agent trained for that specific domain.
 
-Based on this classification, the request is dispatched to a specialized agent optimized for that specific schema, reducing hallucination rates significantly compared to generic extractors.
+### Agent A: The Financial Auditor (Invoices)
+* **Goal:** Extract structured financial data with 100% arithmetic consistency.
+* **Schema Extraction:** Identifies Vendor Name, Invoice IDs, Dates, Currency, and granular Line Items.
+* **The "Self-Healing" Guardrail:** This is the core innovation. The agent does not blindly trust the LLM.
+    1.  It extracts the Line Items and the Total Amount.
+    2.  It runs a deterministic math check: `Sum(Line Items) == Total?`.
+    3.  **If Math Fails:** The system calculates the delta (difference), uses Regex to scan the raw text for that specific missing value (usually a hidden Tax or Discount), and automatically injects it into the dataset to balance the ledger.
+* **Output:** Generates a clean, validated Excel Spreadsheet (`.xlsx`).
 
-### **2. Deterministic Verification & Error Correction**
-A known limitation of LLMs is arithmetic inconsistency in complex table structures. DocuMind addresses this via a post-processing validation layer.
+### Agent B: The Legal Analyst (Contracts)
+* **Goal:** Risk assessment and executive summarization.
+* **Entity & Date Resolution:** Extracts legally binding Effective Dates, Expiration Dates, and Signatories.
+* **Risk Scoring Engine:** Scans the text for dangerous or non-standard clauses (e.g., indefinite liability, missing termination clauses) and assigns a **High**, **Medium**, or **Low** risk score.
+* **Output:** Generates a comprehensive Text Report (`.txt`) suitable for legal review.
 
-The Audit: The system executes a Python-based arithmetic check, verifying that the sum of extracted line items matches the declared total.
+---
 
-The Correction: If a discrepancy is detected, the system calculates the specific delta (e.g., a missing tax value). It then executes a regex-based heuristic search across the raw OCR layer to locate the missing value and injects it into the structured output.
+## Technical Stack
 
-Result: This hybrid approach ensures 100% mathematical consistency in the final JSON output.
+DocuMind is built as a scalable, modern full-stack application.
 
-### **3. Multi-Tenancy & Data Persistence**
-The platform is built as a scalable SaaS architecture using Supabase (PostgreSQL). It implements Row-Level Security (RLS) to ensure strict data isolation between users. All extraction history is indexed, allowing for future analytics and retrieval.
+### Frontend
+* **Framework:** Next.js 14 (React) with TypeScript.
+* **Styling:** Tailwind CSS with a custom Glassmorphism design system.
+* **UX:** Dynamic Dashboards that adapt the UI based on document type (e.g., Financial Tables vs. Risk Analysis Cards).
+* **Visualization:** Lucide React Icons and animated status badges.
 
-## Technology Stack
-1. Orchestration: Python 3.12, FastAPI (Async)
-2. Frontend Interface: Next.js 14, React, Tailwind CSS
-3. LLM Kernel: Google Gemini Flash 1.5 (via LlamaIndex)
-4. OCR Engine: LlamaParse (Multimodal Parsing)
-5. Database: Supabase (PostgreSQL + Auth)
+### Backend
+* **Server:** FastAPI (Python 3.12) running asynchronously for non-blocking I/O.
+* **LLM Orchestration:** LlamaIndex & Google Gemini 1.5 Flash.
+* **Validation Layer:** Custom Python middleware for JSON sanitization and logic checks.
+* **Parsing:** LlamaCloud API.
 
-## What's Next?
-I'm not done yet. Working on something I'll share soon.
+### Database
+* **Core DB:** Supabase (PostgreSQL).
+* **Security:** Row-Level Security (RLS) policies ensuring strict data isolation between users.
+* **Persistence:** All extraction history, validation logs, and risk scores are persisted for long-term auditing.
+
+---
+
+## Roadmap & Future Features
+
+I am actively developing Phase 2 of the platform to expand ingestion capabilities and interactivity.
+
+### 1: Multi-Format Ingestion
+* **Objective:** Break the dependency on PDFs.
+* **Implementation:** Adding support for `.jpg`/`.png` (Mobile receipts) and `.docx` (Word Contracts) via new parsing pipelines.
+
+### 2: RAG (Retrieval-Augmented Generation)
+* **Objective:** "Chat with your Data."
+* **Implementation:** Integrating **pgvector** into Supabase to store document embeddings. Users will be able to ask natural language questions across their entire document history (e.g., *"Show me all invoices from Wayne Enterprises > $500"*).
+
+### 3: Enterprise Batch Processing
+* **Objective:** High-volume throughput.
+* **Implementation:** Asynchronous background queues (Celery/Redis) to handle bulk uploads of 50+ files simultaneously without server blocking.
+
+---
+
+*DocuMind v1.0 (Beta) - Engineered by Dhruv Dahikar.*

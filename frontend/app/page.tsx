@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
+import { 
+  FileText, CheckCircle, AlertTriangle, ShieldCheck, Download, 
+  Scale, Calendar, Users, FileWarning, Search, Zap, ArrowRight, LayoutDashboard 
+} from 'lucide-react';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
@@ -16,11 +20,8 @@ export default function Home() {
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-      } else {
-        setUser(user);
-      }
+      if (!user) router.push('/login');
+      else setUser(user);
     };
     checkUser();
   }, [router]);
@@ -31,28 +32,29 @@ export default function Home() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
+    if (e.target.files && e.target.files[0]) setFile(e.target.files[0]);
   };
 
   const handleUpload = async () => {
     if (!file || !user) return;
     setIsLoading(true);
+    setData(null);
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/extract-data', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch('http://127.0.0.1:8000/extract-data', { method: 'POST', body: formData });
+      if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || "Extraction failed");
+      }
       const result = await response.json();
       setData(result);
 
       let status = "Success";
-      if (result.validation_log) {
-        status = result.validation_log.includes("Fixed") ? "Fixed" : "Review Needed";
+      if (result.document_type === 'invoice') {
+         if (result.validation_log?.includes("Fixed")) status = "Fixed";
+         else if (result.validation_log?.includes("Flagged")) status = "Review Needed";
       }
 
       await supabase.from('documents').insert({
@@ -64,16 +66,20 @@ export default function Home() {
         extracted_data: result
       });
 
-    } catch (err) {
-      alert("Error extracting data");
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error: ${err.message || "Something went wrong"}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const downloadExcel = async () => {
+  const downloadReport = async () => {
     if (!data) return;
-    const response = await fetch('http://127.0.0.1:8000/generate-excel', {
+    const endpoint = data.document_type === 'contract' ? 'generate-summary' : 'generate-excel';
+    const ext = data.document_type === 'contract' ? 'txt' : 'xlsx';
+    
+    const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -82,160 +88,225 @@ export default function Home() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Invoice_${data.vendor_name}.xlsx`;
+    a.download = `DocuMind_Report.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
   };
 
-  if (!user) return <div className="p-10 text-center font-sans text-gray-500">Loading DocuMind...</div>;
+  if (!user) return <div className="min-h-screen flex items-center justify-center text-slate-400 font-medium bg-slate-50">Loading DocuMind...</div>;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-900">
+    <div className="min-h-screen font-sans text-slate-900 bg-slate-50 selection:bg-blue-100">
       
-      {/* HEADER */}
-      <nav className="w-full bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-           <span className="text-2xl font-extrabold text-blue-700 tracking-tight">DocuMind</span>
-           <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-100 uppercase tracking-wide">Beta</span>
-        </div>
-        <div className="flex items-center gap-4">
-            {/* 👇 NEW DASHBOARD BUTTON 👇 */}
-            <Link href="/dashboard" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition">
-                View Dashboard
-            </Link>
-            <div className="h-4 w-px bg-slate-300"></div>
-            
-            <span className="text-sm font-semibold text-slate-700 hidden sm:block">{user.email}</span>
-            <button 
-                onClick={handleLogout}
-                className="text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg font-medium transition"
-            >
-                Sign Out
-            </button>
+      {/* BACKGROUND DECORATION */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/20 blur-[100px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-400/20 blur-[100px]" />
+      </div>
+
+      {/* NAVBAR (Glass) */}
+      <nav className="fixed top-0 w-full z-50 px-6 py-4">
+        <div className="max-w-6xl mx-auto bg-white/70 backdrop-blur-md border border-white/50 shadow-sm rounded-2xl px-6 py-3 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-tr from-blue-600 to-purple-600 text-white p-1.5 rounded-lg">
+                    <Zap className="w-5 h-5 fill-current" />
+                </div>
+                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">
+                    DocuMind
+                </span>
+            </div>
+            <div className="flex items-center gap-6">
+                <Link href="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition flex items-center gap-2 group">
+                    <LayoutDashboard className="w-4 h-4 group-hover:scale-110 transition-transform" /> Dashboard
+                </Link>
+                <div className="h-4 w-px bg-slate-300/50"></div>
+                <button onClick={handleLogout} className="text-sm font-semibold text-slate-500 hover:text-red-500 transition">
+                    Sign Out
+                </button>
+            </div>
         </div>
       </nav>
       
-      <div className="flex flex-col items-center p-8 max-w-6xl mx-auto w-full">
-        {/* HERO */}
-        <div className="text-center max-w-2xl mb-10">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mt-8 mb-3">AI Invoice Extractor</h1>
-            <p className="text-slate-500 text-lg">Upload a PDF. We'll handle the math.</p>
-        </div>
-
-        {/* UPLOAD CARD */}
-        <div className="w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-slate-200 mb-12 hover:shadow-md transition-shadow">
-            <div className="relative border-2 border-dashed border-slate-300 rounded-xl p-10 hover:bg-slate-50 transition-all text-center cursor-pointer group">
-                <input 
-                    type="file" 
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="flex flex-col items-center gap-3">
-                    <span className="text-4xl group-hover:scale-110 transition-transform">📄</span>
-                    <p className="text-slate-600 font-medium text-lg">
-                        {file ? file.name : "Click to Upload Invoice PDF"}
-                    </p>
-                    {!file && <p className="text-slate-400 text-sm">Supports PDF only (Max 5MB)</p>}
-                </div>
+      <div className="relative z-10 flex flex-col items-center pt-32 pb-20 px-6 max-w-6xl mx-auto">
+        
+        {/* HERO SECTION */}
+        <div className="text-center max-w-3xl mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold uppercase tracking-wider mb-6 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                AI Agent V2.0 Live
             </div>
-            <button 
-                onClick={handleUpload}
-                disabled={isLoading || !file}
-                className={`mt-6 w-full py-3.5 px-6 rounded-xl text-white font-bold text-lg transition-all shadow-sm
-                    ${isLoading ? 'bg-slate-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5'}`}
-            >
-                {isLoading ? "Processing..." : "Extract Data"}
-            </button>
+            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight">
+                Turn Documents into <br/>
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 animate-gradient">
+                    Actionable Data.
+                </span>
+            </h1>
+            <p className="text-lg text-slate-500 mb-8 max-w-2xl mx-auto leading-relaxed">
+                Stop manual data entry. Upload unstructured Invoices or Contracts and let our Multi-Agent AI extract, validate, and summarize everything instantly.
+            </p>
         </div>
 
-        {/* CURRENT RESULT (Only shows after upload) */}
-        {data && (
-            <div className="w-full bg-white p-8 rounded-2xl shadow-lg border border-slate-200 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex justify-between items-start mb-6 pb-6 border-b border-slate-100">
-                    <div>
-                        <h2 className="text-3xl font-bold text-slate-800">{data.vendor_name}</h2>
-                        <div className="flex gap-3 mt-2">
-                            <span className="text-slate-500 text-sm font-medium bg-slate-100 px-3 py-1 rounded-full">#{data.invoice_number}</span>
-                            <span className="text-slate-500 text-sm font-medium bg-slate-100 px-3 py-1 rounded-full">{data.invoice_date}</span>
+        {/* UPLOAD CARD (Glass) */}
+        <div className="w-full max-w-xl relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+            <div className="relative w-full bg-white/80 backdrop-blur-xl p-8 rounded-2xl shadow-xl border border-white/50">
+                
+                <div className="relative border-2 border-dashed border-slate-300/60 rounded-xl p-10 hover:bg-blue-50/50 hover:border-blue-400/50 transition-all text-center cursor-pointer group-hover:scale-[1.01] duration-300">
+                    <input 
+                        type="file" 
+                        accept="application/pdf"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                    />
+                    <div className="flex flex-col items-center gap-4 transition-transform duration-300 group-hover:-translate-y-1">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                            <FileText className="w-8 h-8 text-blue-600" />
                         </div>
-                        {data.validation_log && (
-                            <div className={`mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold border ${
-                            data.validation_log.includes("Fixed") 
-                                ? "bg-green-50 text-green-700 border-green-200" 
-                                : "bg-amber-50 text-amber-700 border-amber-200"
-                            }`}>
-                                <span>{data.validation_log.includes("Fixed") ? "✨" : "⚠️"}</span>
-                                {data.validation_log}
+                        <div>
+                            <p className="text-slate-700 font-bold text-lg">
+                                {file ? file.name : "Drop your PDF here"}
+                            </p>
+                            <p className="text-slate-400 text-sm mt-1">
+                                {file ? "Ready to analyze" : "Invoices, Receipts, or Legal Contracts"}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={handleUpload}
+                    disabled={isLoading || !file}
+                    className={`mt-6 w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg flex justify-center items-center gap-2 transition-all duration-300
+                        ${isLoading 
+                            ? 'bg-slate-400 cursor-not-allowed' 
+                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-blue-500/25 hover:scale-[1.02] active:scale-[0.98]'}`}
+                >
+                    {isLoading ? (
+                        <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Analyzing...
+                        </div> 
+                    ) : (
+                        <>
+                            <Search className="w-5 h-5" /> Analyze Document
+                        </>
+                    )}
+                </button>
+            </div>
+        </div>
+
+        {/* --- DYNAMIC RESULT VIEW --- */}
+        {data && (
+            <div className="w-full max-w-4xl mt-16 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 overflow-hidden">
+                    
+                    {/* RESULT HEADER */}
+                    <div className="bg-slate-50/50 border-b border-slate-200/60 p-8 flex justify-between items-start">
+                        <div>
+                            {data.document_type === 'contract' ? (
+                                <div className="flex items-center gap-3 mb-3">
+                                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1">
+                                        <Scale className="w-3 h-3" /> Contract
+                                    </span>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1 ${
+                                        data.overall_risk_level === 'High' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                    }`}>
+                                        <FileWarning className="w-3 h-3" /> Risk: {data.overall_risk_level}
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-3 mb-3">
+                                    <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1">
+                                        <FileText className="w-3 h-3" /> Invoice
+                                    </span>
+                                    {data.validation_log && (
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1 ${
+                                            data.validation_log.includes("Verified") || data.validation_log.includes("Fixed") ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                        }`}>
+                                            {data.validation_log.includes("Fixed") ? <ShieldCheck className="w-3 h-3"/> : <CheckCircle className="w-3 h-3"/>}
+                                            {data.validation_log.includes("Fixed") ? "Auto-Corrected" : "Verified"}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            <h2 className="text-3xl font-bold text-slate-800">
+                                {data.vendor_name || data.contract_type || "Document Analysis"}
+                            </h2>
+                            {data.document_type !== 'contract' && (
+                                <p className="text-slate-500 mt-1 font-mono text-sm">#{data.invoice_number} • {data.invoice_date}</p>
+                            )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={downloadReport}
+                                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2 text-sm"
+                            >
+                                <Download className="w-4 h-4" /> Download
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* RESULT BODY */}
+                    <div className="p-8">
+                        {data.document_type === 'contract' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+                                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <ShieldCheck className="w-5 h-5 text-blue-600" /> Key Terms
+                                    </h3>
+                                    <ul className="space-y-3">
+                                        {data.key_terms?.map((term: string, i: number) => (
+                                            <li key={i} className="text-sm text-slate-600 flex gap-3 items-start">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />
+                                                <span className="leading-relaxed">{term}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-100">
+                                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <AlertTriangle className="w-5 h-5 text-amber-600" /> Risk Analysis
+                                    </h3>
+                                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                                        {data.risk_analysis}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="overflow-hidden border border-slate-200/60 rounded-xl">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50/80 text-xs text-slate-500 uppercase font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-4">Item</th>
+                                            <th className="px-6 py-4 text-right">Qty</th>
+                                            <th className="px-6 py-4 text-right">Price</th>
+                                            <th className="px-6 py-4 text-right">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                        {data.line_items?.map((item: any, i: number) => (
+                                            <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-slate-900">{item.description}</td>
+                                                <td className="px-6 py-4 text-right text-slate-500">{item.quantity}</td>
+                                                <td className="px-6 py-4 text-right text-slate-500">{(item.unit_price || 0).toFixed(2)}</td>
+                                                <td className="px-6 py-4 text-right font-bold text-slate-900">{(item.total_price || 0).toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                        <tr className="bg-slate-50/50">
+                                            <td className="px-6 py-4 font-bold text-slate-900" colSpan={3}>Total Amount</td>
+                                            <td className="px-6 py-4 text-right font-black text-blue-600 text-lg">
+                                                {data.currency} {(data.total_amount || 0).toFixed(2)}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         )}
                     </div>
-                    <div className="flex gap-2">
-                         <button 
-                            onClick={() => setViewMode('excel')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'excel' ? 'bg-slate-100 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Spreadsheet
-                        </button>
-                        <button 
-                            onClick={() => setViewMode('json')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'json' ? 'bg-slate-100 text-purple-600' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            JSON
-                        </button>
-                         <button 
-                            onClick={() => downloadExcel()}
-                            className="ml-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-all flex items-center gap-2"
-                        >
-                            Download Excel
-                        </button>
-                    </div>
-                </div>
 
-                {viewMode === 'excel' && (
-                    <div className="overflow-hidden border border-slate-200 rounded-xl">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 font-bold">Description</th>
-                                    <th className="px-6 py-4 text-right font-bold">Qty</th>
-                                    <th className="px-6 py-4 text-right font-bold">Unit Price</th>
-                                    <th className="px-6 py-4 text-right font-bold">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {data.line_items.map((item: any, index: number) => (
-                                    <tr key={index} className="bg-white hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">{item.description}</td>
-                                        <td className="px-6 py-4 text-right text-slate-600">{item.quantity}</td>
-                                        <td className="px-6 py-4 text-right text-slate-600">{data.currency} {item.unit_price.toFixed(2)}</td>
-                                        <td className="px-6 py-4 text-right font-bold text-slate-900">{data.currency} {item.total_price.toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                                {data.tax_amount > 0 && (
-                                    <tr className="bg-slate-50/50">
-                                        <td className="px-6 py-4 font-medium text-right text-slate-500" colSpan={3}>Tax / VAT</td>
-                                        <td className="px-6 py-4 text-right font-semibold text-slate-700">
-                                            {data.currency} {data.tax_amount.toFixed(2)}
-                                        </td>
-                                    </tr>
-                                )}
-                                <tr className="bg-blue-50/50">
-                                    <td className="px-6 py-4 font-bold text-slate-900" colSpan={3}>TOTAL AMOUNT</td>
-                                    <td className="px-6 py-4 text-right font-extrabold text-blue-700 text-lg">
-                                        {data.currency} {data.total_amount.toFixed(2)}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-                {viewMode === 'json' && (
-                    <div className="bg-slate-900 text-green-400 p-6 rounded-xl overflow-auto max-h-96 font-mono text-sm shadow-inner">
-                        <pre>{JSON.stringify(data, null, 2)}</pre>
-                    </div>
-                )}
+                </div>
             </div>
         )}
       </div>
