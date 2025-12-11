@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import shutil
@@ -50,22 +50,39 @@ def clean_json_text(text: str):
         return match.group(0)
     return text
 
-# --- OPTIMIZATION: Python Keyword Classifier ---
+# --- ⚡ OPTIMIZATION: Python Keyword Classifier ---
 def smart_classify(text: str):
     print("⚡ Speed-Sorting: analyzing keywords locally...")
     text_lower = text.lower()[:3000] 
     
-    invoice_keywords = ['invoice', 'bill to', 'amount due', 'total balance', 'receipt', 'payment', 'subtotal', 'tax']
+    invoice_keywords = [
+        'invoice #', 'bill to:', 'ship to:', 'amount due', 'total balance', 
+        'tax invoice', 'gst reg', 'vat reg', 'qty', 'unit price', 'subtotal'
+    ]
     invoice_score = sum(1 for word in invoice_keywords if word in text_lower)
     
-    contract_keywords = ['agreement', 'mutual', 'confidentiality', 'party', 'parties', 'witnesseth', 'whereas', 'governing law']
+    contract_keywords = [
+        'contract', 'agreement', 'bill of sale', 'mutual', 'confidentiality', 
+        'party', 'parties', 'seller', 'buyer', 'witnesseth', 'whereas', 
+        'governing law', 'jurisdiction', 'effective date', 'employment', 
+        'non-disclosure', 'severability', 'entire agreement', 'termination', 
+        'indemnification', 'warranty'
+    ]
     contract_score = sum(1 for word in contract_keywords if word in text_lower)
 
     print(f"📊 Scores -> Invoice: {invoice_score} | Contract: {contract_score}")
     
-    if contract_score > invoice_score:
-        return 'contract'
+    if contract_score >= 1: return 'contract'
+    if invoice_score > contract_score: return 'invoice'
     return 'invoice'
+
+# --- CLEANUP UTILITY ---
+def remove_file(path: str):
+    try:
+        os.remove(path)
+        print(f"🧹 Cleaned up: {path}")
+    except Exception as e:
+        print(f"⚠️ Cleanup failed: {e}")
 
 # --- ENDPOINT 1: EXTRACT DATA ---
 @app.post("/extract-data")
@@ -86,9 +103,7 @@ async def extract_invoice_data(
             print(f"🔥 PARSE ERROR: {e}")
             raise HTTPException(status_code=500, detail=f"Parse Failed: {str(e)}")
 
-        # --- DETERMINISTIC ROUTING LOGIC ---
         if doc_type != "auto":
-            print(f"🔒 Manual Override Active: Forcing {doc_type.upper()} Agent")
             classification = doc_type
         else:
             classification = smart_classify(pdf_text)
@@ -111,7 +126,6 @@ async def extract_invoice_data(
             output = program(text=pdf_text)
             data_dict = output.dict()
 
-            # --- 🔧 MATH PATCH: Auto-Calculate Missing Tax ---
             items_sum = sum(item.get('total_price', 0) for item in data_dict.get('line_items', []))
             extracted_total = data_dict.get('total_amount', 0)
             diff = extracted_total - items_sum
@@ -134,11 +148,9 @@ async def extract_invoice_data(
                 output = program(text=pdf_text)
                 final_data = output.dict()
             except Exception:
-                # Fallback cleanup
                 raw = llm.complete(prompt.format(text=pdf_text)).text
                 final_data = json.loads(clean_json_text(raw))
 
-            # Dummy fields for UI
             final_data['vendor_name'] = final_data.get('parties_involved', ["Unknown"])[0] 
             final_data['total_amount'] = 0.00
             final_data['invoice_number'] = "NDA"
@@ -157,8 +169,7 @@ async def extract_invoice_data(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-excel")
-async def generate_excel(data: dict):
-    # (Excel Logic - kept short here for readability)
+async def generate_excel(data: dict, background_tasks: BackgroundTasks):
     try:
         excel_rows = []
         items = data.get('line_items', [])
@@ -177,19 +188,41 @@ async def generate_excel(data: dict):
         excel_rows.append({"Description": "GRAND TOTAL", "Total": data.get('total_amount', 0)})
             
         df = pd.DataFrame(excel_rows)
-        filename = "report.xlsx"
+        # Using a unique filename to prevent conflicts
+        filename = f"report_{data.get('invoice_number', 'temp')}.xlsx"
         df.to_excel(filename, index=False)
+        
+        # 🧹 Auto-Delete after sending
+        background_tasks.add_task(remove_file, filename)
+        
         return FileResponse(filename, filename=filename, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-summary")
-async def generate_summary(data: dict):
-    # (Summary Logic)
+async def generate_summary(data: dict, background_tasks: BackgroundTasks):
     try:
-        report_content = f"LEGAL REPORT\nType: {data.get('contract_type')}\nRisk: {data.get('overall_risk_level')}\n\nRISK ANALYSIS:\n{data.get('risk_analysis')}"
-        filename = "contract_summary.txt"
-        with open(filename, "w", encoding="utf-8") as f: f.write(report_content)    
+        report_content = f"""
+LEGAL CONTRACT ANALYSIS
+=======================
+Type: {data.get('contract_type', 'Unknown')}
+Risk: {data.get('overall_risk_level', 'Unknown')}
+Parties: {", ".join(data.get('parties_involved', []))}
+
+RISK ANALYSIS:
+--------------
+{data.get('risk_analysis', 'No analysis provided.')}
+
+KEY TERMS:
+----------
+{chr(10).join(["- " + t for t in data.get('key_terms', [])])}
+"""
+        filename = f"summary_{data.get('invoice_number', 'temp')}.txt"
+        with open(filename, "w", encoding="utf-8") as f: f.write(report_content)
+        
+        # 🧹 Auto-Delete after sending
+        background_tasks.add_task(remove_file, filename)
+            
         return FileResponse(filename, filename=filename, media_type='text/plain')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

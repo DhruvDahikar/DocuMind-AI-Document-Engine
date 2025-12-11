@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   FileText, CheckCircle, AlertTriangle, ShieldCheck, Download, 
-  Scale, Search, Zap, LayoutDashboard, XCircle, X, Sparkles, Layers, Loader2 
+  Scale, Search, Zap, LayoutDashboard, XCircle, Sparkles, Layers, Loader2, User, LogIn, ArrowRight
 } from 'lucide-react';
 
 export default function Home() {
-  // 🌍 ENVIRONMENT SWITCH: Uses Localhost in dev, Render in production
+  // 🌍 ENVIRONMENT SWITCH
   const API_URL = process.env.NODE_ENV === 'development' 
     ? 'http://127.0.0.1:8000' 
     : 'https://documind-ai-document-engine.onrender.com';
@@ -27,15 +27,15 @@ export default function Home() {
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) router.push('/login');
-      else setUser(user);
+      setUser(user); // Just set the user, DO NOT force redirect
     };
     checkUser();
-  }, [router]);
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    setUser(null);
+    router.refresh();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,7 +47,7 @@ export default function Home() {
   };
 
   const handleBatchUpload = async () => {
-    if (files.length === 0 || !user) return;
+    if (files.length === 0) return; // Allow even if !user
     setIsProcessing(true);
     setErrorMessage(null);
     setResults([]);
@@ -63,10 +63,8 @@ export default function Home() {
         formData.append('doc_type', docType);
 
         try {
-            // Artificial delay to prevent Rate Limits (1s)
             if (i > 0) await new Promise(r => setTimeout(r, 1000));
 
-            // 👇 UPDATED: Uses dynamic API_URL
             const response = await fetch(`${API_URL}/extract-data`, { method: 'POST', body: formData });
             
             if (!response.ok) {
@@ -83,10 +81,13 @@ export default function Home() {
                else if (result.validation_log?.includes("Flagged")) status = "Review Needed";
             }
 
-            await supabase.from('documents').insert({
-                user_id: user.id, filename: file.name, vendor_name: result.vendor_name,
-                total_amount: result.total_amount, status: status, extracted_data: result
-            });
+            // 🛑 GUEST LOGIC: Only save to DB if user is logged in
+            if (user) {
+                await supabase.from('documents').insert({
+                    user_id: user.id, filename: file.name, vendor_name: result.vendor_name,
+                    total_amount: result.total_amount, status: status, extracted_data: result
+                });
+            }
 
             newResults.push({ ...result, success: true, original_name: file.name });
             setResults([...newResults]);
@@ -106,7 +107,6 @@ export default function Home() {
     const endpoint = data.document_type === 'contract' ? 'generate-summary' : 'generate-excel';
     const ext = data.document_type === 'contract' ? 'txt' : 'xlsx';
     try {
-        // 👇 UPDATED: Uses dynamic API_URL
         const response = await fetch(`${API_URL}/${endpoint}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
         });
@@ -117,8 +117,6 @@ export default function Home() {
         document.body.appendChild(a); a.click(); a.remove();
     } catch (e) { alert("Download failed."); }
   };
-
-  if (!user) return <div className="min-h-screen flex items-center justify-center text-slate-400 font-medium bg-slate-50">Loading DocuMind...</div>;
 
   return (
     <div className="min-h-screen font-sans text-slate-900 bg-slate-50 selection:bg-blue-100">
@@ -136,12 +134,22 @@ export default function Home() {
                 <div className="bg-gradient-to-tr from-blue-600 to-purple-600 text-white p-1.5 rounded-lg"><Zap className="w-5 h-5 fill-current" /></div>
                 <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">DocuMind</span>
             </div>
+            
+            {/* DYNAMIC NAVBAR: Changes based on Login Status */}
             <div className="flex items-center gap-6">
-                <Link href="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition flex items-center gap-2 group">
-                    <LayoutDashboard className="w-4 h-4 group-hover:scale-110 transition-transform" /> Dashboard
-                </Link>
-                <div className="h-4 w-px bg-slate-300/50"></div>
-                <button onClick={handleLogout} className="text-sm font-semibold text-slate-500 hover:text-red-500 transition">Sign Out</button>
+                {user ? (
+                    <>
+                        <Link href="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition flex items-center gap-2 group">
+                            <LayoutDashboard className="w-4 h-4 group-hover:scale-110 transition-transform" /> Dashboard
+                        </Link>
+                        <div className="h-4 w-px bg-slate-300/50"></div>
+                        <button onClick={handleLogout} className="text-sm font-semibold text-slate-500 hover:text-red-500 transition">Sign Out</button>
+                    </>
+                ) : (
+                    <Link href="/login" className="bg-slate-900 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg hover:scale-105 transition-all flex items-center gap-2">
+                        <LogIn className="w-4 h-4" /> Sign In
+                    </Link>
+                )}
             </div>
         </div>
       </nav>
@@ -150,6 +158,14 @@ export default function Home() {
         
         {/* HERO */}
         <div className="text-center max-w-3xl mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {/* GUEST MODE BANNER */}
+            {!user && (
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100 text-orange-700 text-xs font-bold uppercase tracking-wider mb-6 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                    Guest Mode Active • Data not saved
+                </div>
+            )}
+            
             <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight">
                 Turn Documents into <br/>
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 animate-gradient">Actionable Data.</span>
@@ -175,27 +191,28 @@ export default function Home() {
 
                 {/* DROPZONE */}
                 <div className="relative border-2 border-dashed border-slate-300/60 rounded-xl p-10 hover:bg-blue-50/50 hover:border-blue-400/50 transition-all text-center cursor-pointer group-hover:scale-[1.01] duration-300">
-                    <input 
-                        type="file" 
-                        multiple 
-                        accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" 
-                        onChange={handleFileChange} 
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
-                    />
+                    <input type="file" multiple accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
                     <div className="flex flex-col items-center gap-4 transition-transform duration-300 group-hover:-translate-y-1">
                         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
                             <Layers className="w-8 h-8 text-blue-600" />
                         </div>
                         <div>
-                            <p className="text-slate-700 font-bold text-lg">
-                                {files.length > 0 ? `${files.length} files selected` : "Drop files here"}
-                            </p>
-                            <p className="text-slate-400 text-sm mt-1">
-                                {files.length > 0 ? "Ready to batch process" : "Upload multiple PDFs, Words, or Images"}
-                            </p>
+                            <p className="text-slate-700 font-bold text-lg">{files.length > 0 ? `${files.length} files selected` : "Drop files here"}</p>
+                            <p className="text-slate-400 text-sm mt-1">{files.length > 0 ? "Ready to batch process" : "Upload multiple PDFs, Words, or Images"}</p>
                         </div>
                     </div>
                 </div>
+
+                {errorMessage && (
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 relative">
+                        <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                            <h4 className="text-sm font-bold text-red-800">Processing Failed</h4>
+                            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
+                        </div>
+                        <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-700 transition p-1 hover:bg-red-100 rounded-full"><X className="w-4 h-4" /></button>
+                    </div>
+                )}
 
                 <button 
                     onClick={handleBatchUpload} disabled={isProcessing || files.length === 0}
@@ -206,10 +223,24 @@ export default function Home() {
             </div>
         </div>
 
-        {/* BATCH RESULTS LIST */}
+        {/* RESULTS & UPSELL */}
         {results.length > 0 && (
             <div className="w-full max-w-2xl mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-4">
-                <h3 className="text-xl font-bold text-slate-800 mb-4 px-2">Batch Results</h3>
+                
+                {/* 🆕 UPSELL CARD: ONLY SHOWS FOR GUESTS */}
+                {!user && (
+                    <div className="bg-slate-900 text-white p-6 rounded-xl flex justify-between items-center shadow-xl mb-6">
+                        <div>
+                            <h3 className="font-bold text-lg">Don't lose your data!</h3>
+                            <p className="text-slate-400 text-sm mt-1">These results will disappear when you refresh.</p>
+                        </div>
+                        <Link href="/login" className="bg-white text-slate-900 px-5 py-2.5 rounded-lg font-bold hover:bg-blue-50 transition flex items-center gap-2">
+                            Create Account <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                )}
+
+                <h3 className="text-xl font-bold text-slate-800 mb-4 px-2">Analysis Results</h3>
                 
                 {results.map((res, idx) => (
                     <div key={idx} className="bg-white/80 backdrop-blur-sm border border-slate-200/60 p-5 rounded-xl flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
@@ -240,7 +271,7 @@ export default function Home() {
                             <button 
                                 onClick={() => downloadReport(res)}
                                 className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                                title="Download"
+                                title="Download Report"
                             >
                                 <Download className="w-5 h-5" />
                             </button>

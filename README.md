@@ -1,6 +1,8 @@
 # DocuMind: AI Document Engine
 
-**DocuMind** is a multi-agent AI system designed to solve the "Unstructured Data Problem." It ingests chaotic documents—financial invoices, receipts, and complex legal contracts and transforms them into structured, verifiable, and actionable intelligence.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-DocuMind-blue?style=for-the-badge&logo=rocket)](https://documind-ai-document-engine.vercel.app/) 
+
+**DocuMind** is a multi-agent AI system designed to solve the "Unstructured Data Problem." It ingests chaotic documents—financial invoices, receipts, and complex legal contracts—and transforms them into structured, verifiable, and actionable intelligence.
 
 Unlike standard LLM wrappers that simply "guess" at data, DocuMind implements a **Hybrid Intelligence Architecture**. It fuses the creative flexibility of Large Language Models with the strict reliability of deterministic algorithms to ensure data accuracy through mathematical validation and self-correction.
 
