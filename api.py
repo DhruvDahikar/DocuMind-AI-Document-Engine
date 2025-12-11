@@ -50,7 +50,7 @@ def clean_json_text(text: str):
         return match.group(0)
     return text
 
-# --- ⚡ OPTIMIZATION: Python Keyword Classifier ---
+# --- OPTIMIZATION: Python Keyword Classifier ---
 def smart_classify(text: str):
     print("⚡ Speed-Sorting: analyzing keywords locally...")
     text_lower = text.lower()[:3000] 
@@ -71,7 +71,7 @@ def smart_classify(text: str):
 @app.post("/extract-data")
 async def extract_invoice_data(
     file: UploadFile = File(...), 
-    doc_type: str = Form("auto") # <--- NEW PARAMETER
+    doc_type: str = Form("auto") 
 ):
     temp_filename = f"temp_{file.filename}"
     try:
@@ -158,7 +158,7 @@ async def extract_invoice_data(
 
 @app.post("/generate-excel")
 async def generate_excel(data: dict):
-    # (Same Excel Logic as before - kept short here for readability)
+    # (Excel Logic - kept short here for readability)
     try:
         excel_rows = []
         items = data.get('line_items', [])
@@ -185,7 +185,7 @@ async def generate_excel(data: dict):
 
 @app.post("/generate-summary")
 async def generate_summary(data: dict):
-    # (Same Summary Logic as before)
+    # (Summary Logic)
     try:
         report_content = f"LEGAL REPORT\nType: {data.get('contract_type')}\nRisk: {data.get('overall_risk_level')}\n\nRISK ANALYSIS:\n{data.get('risk_analysis')}"
         filename = "contract_summary.txt"

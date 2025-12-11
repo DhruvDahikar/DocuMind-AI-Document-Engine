@@ -1,6 +1,6 @@
 import os
 import asyncio
-import nest_asyncio  # <--- NEW
+import nest_asyncio  
 from dotenv import load_dotenv
 from llama_parse import LlamaParse
 from llama_index.llms.google_genai import GoogleGenAI
@@ -8,7 +8,7 @@ from llama_index.core.program import LLMTextCompletionProgram
 from schemas import InvoiceSchema
 
 # Apply the patch immediately
-nest_asyncio.apply()  # <--- NEW
+nest_asyncio.apply()  
 
 # 1. Load keys
 load_dotenv()
@@ -29,7 +29,7 @@ parser = LlamaParse(
 
 # 3. Setup the 'Brain' (GoogleGenAI)
 llm = GoogleGenAI(
-    model="gemini-flash-latest",  # <--- CHANGED TO THIS SAFE ALIAS
+    model="gemini-flash-latest", 
     api_key=os.getenv("GOOGLE_API_KEY")
 )
 
@@ -56,7 +56,7 @@ def main():
         return
 
     try:
-        # We use a cleaner way to run the async loop
+        # use a cleaner way to run the async loop
         result = asyncio.run(process_invoice(pdf_file))
         print("\n🎉 SUCCESS! Data Extracted:\n")
         print(result.model_dump_json(indent=2))

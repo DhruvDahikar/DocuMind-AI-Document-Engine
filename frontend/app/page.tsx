@@ -11,8 +11,8 @@ import {
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [files, setFiles] = useState<File[]>([]); // 🆕 Changed to Array
-  const [results, setResults] = useState<any[]>([]); // 🆕 Store multiple results
+  const [files, setFiles] = useState<File[]>([]); // Changed to Array
+  const [results, setResults] = useState<any[]>([]); // Store multiple results
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentFileIndex, setCurrentFileIndex] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export default function Home() {
     }
   };
 
-  // 🔄 THE NEW BATCH UPLOADER
+  // THE NEW BATCH UPLOADER
   const handleBatchUpload = async () => {
     if (files.length === 0 || !user) return;
     setIsProcessing(true);
@@ -177,7 +177,7 @@ export default function Home() {
                 <div className="relative border-2 border-dashed border-slate-300/60 rounded-xl p-10 hover:bg-blue-50/50 hover:border-blue-400/50 transition-all text-center cursor-pointer group-hover:scale-[1.01] duration-300">
                     <input 
                         type="file" 
-                        multiple // 🆕 ENABLE MULTIPLE FILES
+                        multiple // ENABLE MULTIPLE FILES
                         accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" 
                         onChange={handleFileChange} 
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
@@ -206,7 +206,7 @@ export default function Home() {
             </div>
         </div>
 
-        {/* 🆕 BATCH RESULTS LIST */}
+        {/* BATCH RESULTS LIST */}
         {results.length > 0 && (
             <div className="w-full max-w-2xl mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-4">
                 <h3 className="text-xl font-bold text-slate-800 mb-4 px-2">Batch Results</h3>

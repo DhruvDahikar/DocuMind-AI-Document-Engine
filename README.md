@@ -1,6 +1,6 @@
 # DocuMind: AI Document Engine
 
-**DocuMind** is a multi-agent AI system designed to solve the "Unstructured Data Problem." It ingests chaotic documents—financial invoices, receipts, and complex legal contracts—and transforms them into structured, verifiable, and actionable intelligence.
+**DocuMind** is a multi-agent AI system designed to solve the "Unstructured Data Problem." It ingests chaotic documents—financial invoices, receipts, and complex legal contracts and transforms them into structured, verifiable, and actionable intelligence.
 
 Unlike standard LLM wrappers that simply "guess" at data, DocuMind implements a **Hybrid Intelligence Architecture**. It fuses the creative flexibility of Large Language Models with the strict reliability of deterministic algorithms to ensure data accuracy through mathematical validation and self-correction.
 
@@ -10,16 +10,16 @@ Unlike standard LLM wrappers that simply "guess" at data, DocuMind implements a 
 
 ### 1. Multi-Modal Ingestion (Universal Support)
 The system is no longer limited to PDFs. DocuMind utilizes **LlamaParse** to natively read and extract data from a wide range of formats:
-* **Documents:** `.pdf`, `.docx` (Word).
-* **Images:** `.jpg`, `.png` (Scanned Receipts & Photos).
+* **Documents:** `.pdf`, `.docx`.
+* **Images:** `.jpg`, `.png`.
 
 ### 2. Smart Batch Processing
-Designed for high-volume workflows, the platform features an **Intelligent Queue System**. Users can drag-and-drop multiple files simultaneously. The frontend orchestrator processes them sequentially with artificial delays to respect API rate limits (Quota Management) while maintaining a seamless user experience.
+Designed for high-volume workflows, the platform features an **Intelligent Queue System**. Users can drag-and-drop multiple files simultaneously. The frontend orchestrator processes them sequentially while maintaining a seamless user experience.
 
 ### 3. Hybrid Semantic Routing (Speed Optimized)
-To optimize for cost and speed, DocuMind employs a **Two-Tier Classification System**:
-* **Tier 1 (Heuristic):** A Python-based keyword scanner analyzes token density (e.g., "Total," "Whereas") to instantly classify documents without touching the LLM.
-* **Tier 2 (AI Fallback):** If the heuristic score is ambiguous, the system escalates to the Semantic AI Agent for deep context analysis.
+To optimize for cost and speed, DocuMind employs a **Classification System**:
+* **1 Heuristic:** A Python-based keyword scanner analyzes token density (e.g., "Total," "Whereas") to instantly classify documents without touching the LLM.
+* **2 AI Fallback:** If the heuristic score is ambiguous, the system escalates to the Semantic AI Agent for deep context analysis.
 * **Manual Override:** Users have the option to force a specific processing pipeline via the UI.
 
 ---
@@ -70,7 +70,7 @@ DocuMind is built as a scalable, modern full-stack application.
 
 ## 🔮 Roadmap (Phase 2)
 
-We have successfully completed Phase 1 (Core Engine, Multi-Format, Batching). The next development phase focuses on interactivity.
+I have successfully completed Phase 1 (Core Engine, Multi-Format, Batching). The next development phase focuses on interactivity.
 
 ### RAG (Retrieval-Augmented Generation)
 * **Objective:** "Chat with your Data."
