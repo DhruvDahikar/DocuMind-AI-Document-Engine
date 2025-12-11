@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  FileText, CheckCircle, AlertTriangle, ShieldCheck, Download, 
-  Scale, Search, Zap, LayoutDashboard, XCircle, Sparkles, Layers, Loader2, User, LogIn, ArrowRight
+  FileText, CheckCircle, AlertTriangle, Download, 
+  Scale, Search, Zap, LayoutDashboard, XCircle, X, Sparkles,
+  Layers, Loader2, LogIn, ArrowRight 
 } from 'lucide-react';
 
 export default function Home() {
