@@ -6,13 +6,18 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   FileText, CheckCircle, AlertTriangle, ShieldCheck, Download, 
-  Scale, FileWarning, Search, Zap, LayoutDashboard, XCircle, X, Sparkles, Layers, Loader2 
+  Scale, Search, Zap, LayoutDashboard, XCircle, X, Sparkles, Layers, Loader2 
 } from 'lucide-react';
 
 export default function Home() {
+  // 🌍 ENVIRONMENT SWITCH: Uses Localhost in dev, Render in production
+  const API_URL = process.env.NODE_ENV === 'development' 
+    ? 'http://127.0.0.1:8000' 
+    : 'https://documind-ai-document-engine.onrender.com';
+
   const [user, setUser] = useState<any>(null);
-  const [files, setFiles] = useState<File[]>([]); // Changed to Array
-  const [results, setResults] = useState<any[]>([]); // Store multiple results
+  const [files, setFiles] = useState<File[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentFileIndex, setCurrentFileIndex] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -35,14 +40,12 @@ export default function Home() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-        // Convert FileList to Array
         setFiles(Array.from(e.target.files));
         setErrorMessage(null);
-        setResults([]); // Clear old results
+        setResults([]); 
     }
   };
 
-  // THE NEW BATCH UPLOADER
   const handleBatchUpload = async () => {
     if (files.length === 0 || !user) return;
     setIsProcessing(true);
@@ -51,9 +54,8 @@ export default function Home() {
 
     const newResults: any[] = [];
 
-    // Loop through each file sequentially
     for (let i = 0; i < files.length; i++) {
-        setCurrentFileIndex(i); // Update UI to show which file is processing
+        setCurrentFileIndex(i);
         const file = files[i];
         
         const formData = new FormData();
@@ -64,7 +66,8 @@ export default function Home() {
             // Artificial delay to prevent Rate Limits (1s)
             if (i > 0) await new Promise(r => setTimeout(r, 1000));
 
-            const response = await fetch('http://127.0.0.1:8000/extract-data', { method: 'POST', body: formData });
+            // 👇 UPDATED: Uses dynamic API_URL
+            const response = await fetch(`${API_URL}/extract-data`, { method: 'POST', body: formData });
             
             if (!response.ok) {
                 const errData = await response.json();
@@ -74,26 +77,22 @@ export default function Home() {
 
             const result = await response.json();
             
-            // Determine Status
             let status = "Success";
             if (result.document_type === 'invoice') {
                if (result.validation_log?.includes("Fixed")) status = "Fixed";
                else if (result.validation_log?.includes("Flagged")) status = "Review Needed";
             }
 
-            // Save to DB
             await supabase.from('documents').insert({
                 user_id: user.id, filename: file.name, vendor_name: result.vendor_name,
                 total_amount: result.total_amount, status: status, extracted_data: result
             });
 
-            // Add to Local Results
             newResults.push({ ...result, success: true, original_name: file.name });
-            setResults([...newResults]); // Update State to show progress
+            setResults([...newResults]);
 
         } catch (err: any) {
             console.error(err);
-            // Push failed result so loop continues
             newResults.push({ success: false, original_name: file.name, error: err.message });
             setResults([...newResults]);
         }
@@ -107,7 +106,8 @@ export default function Home() {
     const endpoint = data.document_type === 'contract' ? 'generate-summary' : 'generate-excel';
     const ext = data.document_type === 'contract' ? 'txt' : 'xlsx';
     try {
-        const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
+        // 👇 UPDATED: Uses dynamic API_URL
+        const response = await fetch(`${API_URL}/${endpoint}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
         });
         const blob = await response.blob();
@@ -177,7 +177,7 @@ export default function Home() {
                 <div className="relative border-2 border-dashed border-slate-300/60 rounded-xl p-10 hover:bg-blue-50/50 hover:border-blue-400/50 transition-all text-center cursor-pointer group-hover:scale-[1.01] duration-300">
                     <input 
                         type="file" 
-                        multiple // ENABLE MULTIPLE FILES
+                        multiple 
                         accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" 
                         onChange={handleFileChange} 
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
