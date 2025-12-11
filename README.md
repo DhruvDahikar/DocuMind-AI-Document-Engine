@@ -13,16 +13,17 @@ Unlike standard LLM wrappers that simply "guess" at data, DocuMind implements a 
 ### 1. Multi-Modal Ingestion (Universal Support)
 The system is no longer limited to PDFs. DocuMind utilizes **LlamaParse** to natively read and extract data from a wide range of formats:
 * **Documents:** `.pdf`, `.docx`.
-* **Images:** `.jpg`, `.png`.
+* **Images:** `.jpg`, `.png` (Optical Character Recognition).
 
-### 2. Smart Batch Processing
-Designed for high-volume workflows, the platform features an **Intelligent Queue System**. Users can drag-and-drop multiple files simultaneously. The frontend orchestrator processes them sequentially while maintaining a seamless user experience.
+### 2. Executive Analytics Dashboard
+A real-time visual command center for financial and legal oversight.
+* **Financial Velocity:** Interactive Bar Charts track monthly spending trends and top vendor distribution.
+* **Legal Risk Heatmap:** A specialized "Risk Engine" scans contracts for dangerous clauses. The dashboard features a **Red Alert System** that instantly filters the document list to show only High-Risk agreements requiring attention.
 
 ### 3. Hybrid Semantic Routing (Speed Optimized)
 To optimize for cost and speed, DocuMind employs a **Classification System**:
 * **1 Heuristic:** A Python-based keyword scanner analyzes token density (e.g., "Total," "Whereas") to instantly classify documents without touching the LLM.
 * **2 AI Fallback:** If the heuristic score is ambiguous, the system escalates to the Semantic AI Agent for deep context analysis.
-* **Manual Override:** Users have the option to force a specific processing pipeline via the UI.
 
 ---
 
@@ -32,7 +33,6 @@ Once classified, the document is handed off to a specialized agent trained for t
 
 ### Agent A: The Financial Auditor (Invoices)
 * **Goal:** Extract structured financial data with 100% arithmetic consistency.
-* **Schema Extraction:** Identifies Vendor Name, Invoice IDs, Dates, Currency, and granular Line Items.
 * **The "Self-Healing" Guardrail:** The core innovation. The agent does not blindly trust the LLM.
     1.  It extracts the Line Items and the Total Amount.
     2.  It runs a deterministic math check: `Sum(Line Items) == Total?`.
@@ -42,7 +42,7 @@ Once classified, the document is handed off to a specialized agent trained for t
 ### Agent B: The Legal Analyst (Contracts)
 * **Goal:** Risk assessment and executive summarization.
 * **Entity & Date Resolution:** Extracts legally binding Effective Dates, Expiration Dates, and Signatories.
-* **Risk Scoring Engine:** Scans the text for dangerous or non-standard clauses (e.g., indefinite liability, missing termination clauses) and assigns a **High**, **Medium**, or **Low** risk score.
+* **Risk Scoring Engine:** Scans the text for dangerous or non-standard clauses (e.g., indefinite liability, missing termination clauses) and assigns a **High**, **Medium**, or **Low** risk score based on semantic severity.
 * **Output:** Generates a comprehensive Text Report (`.txt`) with key terms and risk analysis.
 
 ---
@@ -53,9 +53,8 @@ DocuMind is built as a scalable, modern full-stack application.
 
 ### Frontend
 * **Framework:** Next.js 14 (React) with TypeScript.
-* **Styling:** Tailwind CSS with a custom Glassmorphism design system.
+* **Visualization:** Recharts for data analytics & Lucide React for iconography.
 * **UX:** Dynamic Dashboards, Drag-and-Drop Batch Uploader, and Context-Aware Error Handling.
-* **Visualization:** Lucide React Icons and animated status badges.
 
 ### Backend
 * **Server:** FastAPI (Python 3.12) running asynchronously.
@@ -72,7 +71,7 @@ DocuMind is built as a scalable, modern full-stack application.
 
 ## 🔮 Roadmap (Phase 2)
 
-I have successfully completed Phase 1 (Core Engine, Multi-Format, Batching). The next development phase focuses on interactivity.
+I have successfully completed Phase 1 (Core Engine) and Phase 2 (Analytics). The next development phase focuses on deep interactivity.
 
 ### RAG (Retrieval-Augmented Generation)
 * **Objective:** "Chat with your Data."
