@@ -40,13 +40,17 @@ export default function ChatWidget() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const API_URL = process.env.NODE_ENV === 'development' 
+        ? 'http://127.0.0.1:8000' 
+        : 'https://documind-ai-document-engine.onrender.com'; 
+
       // 2. Call the new RAG Endpoint
-      // Note: Use the full URL if running locally, or relative path if configured
-      const response = await fetch('http://127.0.0.1:8000/chat', { 
+      const response = await fetch(`${API_URL}/chat`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage, user_id: user.id })
       });
+      
 
       const data = await response.json();
 
