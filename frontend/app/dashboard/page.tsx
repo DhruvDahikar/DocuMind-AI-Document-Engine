@@ -1,12 +1,13 @@
 'use client';
 
+import ChatWidget from '@/components/ChatWidget';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   LayoutDashboard, FileText, DollarSign, LogOut, Loader2, 
-  PieChart, BarChart3, ShieldAlert, Scale, CheckCircle, X, AlertTriangle
+  PieChart, BarChart3, ShieldAlert, Scale, CheckCircle, X, AlertTriangle, Zap
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -108,35 +109,58 @@ export default function Dashboard() {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-400 bg-slate-50"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
 
   return (
-    <div className="min-h-screen font-sans text-slate-900 bg-slate-50 selection:bg-blue-100">
+    <div className="min-h-screen font-sans text-slate-900 bg-slate-50 selection:bg-blue-100 relative">
       
-      <nav className="fixed top-0 w-full z-50 px-6 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+      {/* 🌌 BACKGROUND GLOW (Matches Landing Page) */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/20 blur-[100px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-400/20 blur-[100px]" />
+      </div>
+
+      {/* 💎 GLASS NAVBAR */}
+      <nav className="fixed top-0 w-full z-50 px-6 py-4">
+        <div className="max-w-6xl mx-auto bg-white/70 backdrop-blur-md border border-white/50 shadow-sm rounded-2xl px-6 py-3 flex justify-between items-center">
+            
+            {/* Logo Area */}
             <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition">
-                <div className="bg-gradient-to-tr from-blue-600 to-purple-600 text-white p-1.5 rounded-lg"><LayoutDashboard className="w-5 h-5 fill-current" /></div>
-                <span className="text-xl font-bold text-slate-800">Dashboard</span>
+                <div className="bg-gradient-to-tr from-blue-600 to-purple-600 text-white p-1.5 rounded-lg">
+                    <Zap className="w-5 h-5 fill-current" />
+                </div>
+                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">
+                    DocuMind <span className="text-slate-400 font-medium text-sm ml-1">Dashboard</span>
+                </span>
             </Link>
-            <button onClick={handleLogout} className="text-sm font-bold text-slate-500 hover:text-red-600 transition flex items-center gap-2">
-                <LogOut className="w-4 h-4" /> Sign Out
-            </button>
+
+            {/* User Controls */}
+            <div className="flex items-center gap-4">
+                <span className="text-sm font-semibold text-slate-500 hidden sm:block">
+                    {user?.email}
+                </span>
+                <div className="h-4 w-px bg-slate-300/50 hidden sm:block"></div>
+                <button onClick={handleLogout} className="text-sm font-bold text-slate-500 hover:text-red-600 transition flex items-center gap-2">
+                    <LogOut className="w-4 h-4" /> Sign Out
+                </button>
+            </div>
         </div>
       </nav>
 
-      <main className="pt-28 pb-20 px-6 max-w-7xl mx-auto">
+      {/* MAIN CONTENT */}
+      <main className="relative z-10 pt-32 pb-20 px-6 max-w-6xl mx-auto">
         
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
                 <h1 className="text-3xl font-extrabold text-slate-900">Executive Overview</h1>
                 <p className="text-slate-500 mt-1">Financial auditing and legal risk analysis.</p>
             </div>
-            <Link href="/" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center gap-2">
+            <Link href="/" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 hover:shadow-blue-500/30 transition-all flex items-center gap-2">
                 <FileText className="w-4 h-4" /> Upload New File
             </Link>
         </div>
 
         {/* 📊 STATS CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
                 <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><DollarSign className="w-8 h-8" /></div>
                 <div>
                     <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Total Spend</p>
@@ -144,7 +168,7 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
                 <div className="p-3 bg-purple-100 text-purple-600 rounded-xl"><Scale className="w-8 h-8" /></div>
                 <div>
                     <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Active Contracts</p>
@@ -155,9 +179,9 @@ export default function Dashboard() {
             {/* 🔴 INTERACTIVE RISK CARD */}
             <div 
                 onClick={() => stats.highRiskCount > 0 && setFilter(filter === 'all' ? 'high_risk' : 'all')}
-                className={`p-6 rounded-2xl shadow-sm border flex items-center gap-4 transition-all duration-200 
+                className={`p-6 rounded-2xl shadow-sm border flex items-center gap-4 transition-all duration-200 backdrop-blur-sm
                     ${stats.highRiskCount > 0 ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98]' : ''}
-                    ${filter === 'high_risk' ? 'ring-2 ring-red-500 ring-offset-2 bg-red-50 border-red-200' : 'bg-white border-slate-100'}
+                    ${filter === 'high_risk' ? 'ring-2 ring-red-500 ring-offset-2 bg-red-50/90 border-red-200' : 'bg-white/80 border-slate-100'}
                 `}
             >
                 <div className={`p-3 rounded-xl ${stats.highRiskCount > 0 ? 'bg-red-200 text-red-700' : 'bg-green-100 text-green-600'}`}>
@@ -181,7 +205,7 @@ export default function Dashboard() {
         {/* 📈 CHARTS ROW */}
         {docs.length > 0 && filter === 'all' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-blue-500" /> Financial Velocity
                     </h3>
@@ -198,7 +222,7 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <PieChart className="w-5 h-5 text-purple-500" /> Contract Risk Distribution
                     </h3>
@@ -224,7 +248,7 @@ export default function Dashboard() {
         )}
 
         {/* 📜 DOCUMENT LIST */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div className="flex items-center gap-2">
                     <h3 className="font-bold text-slate-800">
@@ -243,14 +267,13 @@ export default function Dashboard() {
                     const riskRaw = doc.extracted_data?.overall_risk_level || 'Unknown';
                     const risk = riskRaw.toLowerCase();
                     
-                    // 🎨 COLOR LOGIC FOR LIST
                     let badgeClass = 'bg-slate-100 text-slate-700'; // Default
                     if (risk.includes('high')) badgeClass = 'bg-red-100 text-red-700';
                     else if (risk.includes('medium')) badgeClass = 'bg-orange-100 text-orange-700';
                     else if (risk.includes('low')) badgeClass = 'bg-green-100 text-green-700';
 
                     return (
-                        <div key={doc.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition">
+                        <div key={doc.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition">
                             <div className="flex items-center gap-4">
                                 <div className={`p-2 rounded-lg ${isContract ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
                                     {isContract ? <Scale className="w-5 h-5" /> : <DollarSign className="w-5 h-5" />}
@@ -284,6 +307,7 @@ export default function Dashboard() {
         </div>
 
       </main>
+      <ChatWidget />
     </div>
   );
 }

@@ -25,10 +25,11 @@ export default function Home() {
   const [docType, setDocType] = useState<string>('auto');
   const router = useRouter();
 
+  // 1. CHECK USER SESSION
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user); // Just set the user, DO NOT force redirect
+      setUser(user);
     };
     checkUser();
   }, []);
@@ -47,8 +48,9 @@ export default function Home() {
     }
   };
 
+  // 2. THE FIXED UPLOAD FUNCTION
   const handleBatchUpload = async () => {
-    if (files.length === 0) return; // Allow even if !user
+    if (files.length === 0) return;
     setIsProcessing(true);
     setErrorMessage(null);
     setResults([]);
@@ -62,6 +64,14 @@ export default function Home() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('doc_type', docType);
+
+        // 👇 THIS IS THE CRITICAL FIX WE ADDED
+        if (user) {
+            formData.append('user_id', user.id);
+        } else {
+            formData.append('user_id', 'guest_mode');
+        }
+        // 👆 END FIX
 
         try {
             if (i > 0) await new Promise(r => setTimeout(r, 1000));
@@ -82,7 +92,7 @@ export default function Home() {
                else if (result.validation_log?.includes("Flagged")) status = "Review Needed";
             }
 
-            // 🛑 GUEST LOGIC: Only save to DB if user is logged in
+            // Only save to DB if user is logged in
             if (user) {
                 await supabase.from('documents').insert({
                     user_id: user.id, filename: file.name, vendor_name: result.vendor_name,
@@ -136,7 +146,6 @@ export default function Home() {
                 <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">DocuMind</span>
             </div>
             
-            {/* DYNAMIC NAVBAR: Changes based on Login Status */}
             <div className="flex items-center gap-6">
                 {user ? (
                     <>
@@ -159,7 +168,6 @@ export default function Home() {
         
         {/* HERO */}
         <div className="text-center max-w-3xl mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            {/* GUEST MODE BANNER */}
             {!user && (
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100 text-orange-700 text-xs font-bold uppercase tracking-wider mb-6 shadow-sm">
                     <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
@@ -228,7 +236,6 @@ export default function Home() {
         {results.length > 0 && (
             <div className="w-full max-w-2xl mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-4">
                 
-                {/* 🆕 UPSELL CARD: ONLY SHOWS FOR GUESTS */}
                 {!user && (
                     <div className="bg-slate-900 text-white p-6 rounded-xl flex justify-between items-center shadow-xl mb-6">
                         <div>

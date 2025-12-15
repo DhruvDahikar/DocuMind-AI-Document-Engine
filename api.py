@@ -1,16 +1,23 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from sqlalchemy import make_url
+from llama_index.core import VectorStoreIndex, Document, StorageContext, Settings
+from llama_index.vector_stores.postgres import PGVectorStore
+from llama_index.embeddings.gemini import GeminiEmbedding
+from llama_index.llms.gemini import Gemini
+from llama_index.core.program import LLMTextCompletionProgram
+from llama_parse import LlamaParse
 import shutil
 import os
 import pandas as pd
 import nest_asyncio
 import json
 import re
+from typing import List, Optional
+from pydantic import BaseModel
 from dotenv import load_dotenv
-from llama_parse import LlamaParse
-from llama_index.llms.google_genai import GoogleGenAI
-from llama_index.core.program import LLMTextCompletionProgram
+
 from validator import validate_and_correct
 from schemas import InvoiceSchema, DocumentClassification, ContractSchema
 
@@ -29,30 +36,53 @@ app.add_middleware(
 
 # --- AI CONFIGURATION ---
 try:
+    embed_model = GeminiEmbedding(
+        model_name="models/text-embedding-004", 
+        api_key=os.getenv("GOOGLE_API_KEY")
+    )
+    
+    llm = Gemini(
+        model="models/gemini-2.5-flash-lite", 
+        api_key=os.getenv("GOOGLE_API_KEY")
+    )
+    
+    Settings.embed_model = embed_model
+    Settings.llm = llm
+
     parser = LlamaParse(
         api_key=os.getenv("LLAMA_CLOUD_API_KEY"),
         result_type="markdown",
         verbose=True
     )
-
-    llm = GoogleGenAI(
-        model="gemini-flash-latest", 
-        api_key=os.getenv("GOOGLE_API_KEY")
-    )
+    
+    print("✅ AI Models Initialized Successfully")
 except Exception as e:
     print(f"🔥 CRITICAL SETUP ERROR: {e}")
 
-def clean_json_text(text: str):
-    text = re.sub(r'```json\s*', '', text)
-    text = re.sub(r'```\s*', '', text)
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        return match.group(0)
-    return text
+# --- DATABASE CONNECTION ---
+DB_URL = os.getenv("DATABASE_URL")
 
-# --- ⚡ OPTIMIZATION: Python Keyword Classifier ---
+def get_vector_store():
+    if not DB_URL:
+        raise ValueError("DATABASE_URL is missing in .env")
+
+    try:
+        url = make_url(DB_URL)
+        return PGVectorStore.from_params(
+            database=url.database,
+            host=url.host,
+            password=url.password,
+            port=url.port or 5432,
+            user=url.username,
+            table_name="document_embeddings",
+            embed_dim=768
+        )
+    except Exception as e:
+        print(f"Connection Error: {e}")
+        raise e
+
+# --- UTILITIES ---
 def smart_classify(text: str):
-    print("⚡ Speed-Sorting: analyzing keywords locally...")
     text_lower = text.lower()[:3000] 
     
     invoice_keywords = [
@@ -70,49 +100,75 @@ def smart_classify(text: str):
     ]
     contract_score = sum(1 for word in contract_keywords if word in text_lower)
 
-    print(f"📊 Scores -> Invoice: {invoice_score} | Contract: {contract_score}")
-    
     if contract_score >= 1: return 'contract'
     if invoice_score > contract_score: return 'invoice'
     return 'invoice'
 
-# --- CLEANUP UTILITY ---
+def clean_json_text(text: str):
+    text = re.sub(r'```json\s*', '', text)
+    text = re.sub(r'```\s*', '', text)
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        return match.group(0)
+    return text
+
 def remove_file(path: str):
     try:
         os.remove(path)
-        print(f"🧹 Cleaned up: {path}")
     except Exception as e:
-        print(f"⚠️ Cleanup failed: {e}")
+        print(f"Cleanup failed: {e}")
 
-# --- ENDPOINT 1: EXTRACT DATA ---
+async def ingest_document_to_vector_db(text: str, filename: str, user_id: str):
+    try:
+        doc = Document(
+            text=text, 
+            metadata={
+                "filename": filename,
+                "user_id": user_id, 
+                "type": "uploaded_doc"
+            }
+        )
+
+        vector_store = get_vector_store()
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+        VectorStoreIndex.from_documents(
+            [doc], 
+            storage_context=storage_context,
+            show_progress=True
+        )
+    except Exception as e:
+        print(f"Vector Ingestion Failed: {e}")
+
+# --- ENDPOINTS ---
+
 @app.post("/extract-data")
 async def extract_invoice_data(
     file: UploadFile = File(...), 
-    doc_type: str = Form("auto") 
+    doc_type: str = Form("auto"),
+    user_id: str = Form(...)
 ):
     temp_filename = f"temp_{file.filename}"
     try:
         with open(temp_filename, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        print(f"📄 Step 1: Parsing Document {temp_filename}...")
         try:
             documents = await parser.aload_data(temp_filename)
             pdf_text = documents[0].text
         except Exception as e:
-            print(f"🔥 PARSE ERROR: {e}")
             raise HTTPException(status_code=500, detail=f"Parse Failed: {str(e)}")
+
+        await ingest_document_to_vector_db(pdf_text, file.filename, user_id)
 
         if doc_type != "auto":
             classification = doc_type
         else:
             classification = smart_classify(pdf_text)
-            print(f"🎩 Auto-Classified as: {classification.upper()}")
         
         final_data = {}
 
         if classification == 'invoice':
-            print("⚡ Routing to: INVOICE AGENT")
             prompt = """
             You are an expert Data Extraction AI. Extract data from this invoice/receipt into strict JSON.
             CRITICAL INSTRUCTIONS:
@@ -131,14 +187,12 @@ async def extract_invoice_data(
             diff = extracted_total - items_sum
             
             if data_dict.get('tax_amount', 0) == 0 and diff > 0.05:
-                print(f"🔧 Auto-Healing: AI missed Tax. Detected gap of {diff:.2f}. Injecting as Tax.")
                 data_dict['tax_amount'] = round(diff, 2)
                 data_dict['validation_log'] = "Fixed: Missing Tax Auto-Calculated"
             
             final_data = validate_and_correct(data_dict, pdf_text)
 
         elif classification == 'contract':
-            print("📜 Routing to: CONTRACT AGENT")
             prompt = (
                 "You are a Senior Legal Analyst. Analyze this contract and extract data strictly according to the schema.\n"
                 "CRITICAL: Output ONLY valid JSON. No Markdown.\n\nContract Text:\n{text}"
@@ -165,7 +219,33 @@ async def extract_invoice_data(
 
     except Exception as e:
         if os.path.exists(temp_filename): os.remove(temp_filename)
-        print(f"❌ GLOBAL ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ChatRequest(BaseModel):
+    message: str
+    user_id: str
+
+@app.post("/chat")
+async def chat_with_docs(request: ChatRequest):
+    try:
+        vector_store = get_vector_store()
+        index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+
+        from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
+        
+        filters = MetadataFilters(
+            filters=[ExactMatchFilter(key="user_id", value=request.user_id)]
+        )
+
+        query_engine = index.as_query_engine(
+            filters=filters,
+            similarity_top_k=5
+        )
+
+        response = query_engine.query(request.message)
+        return {"response": str(response)}
+
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-excel")
@@ -188,11 +268,9 @@ async def generate_excel(data: dict, background_tasks: BackgroundTasks):
         excel_rows.append({"Description": "GRAND TOTAL", "Total": data.get('total_amount', 0)})
             
         df = pd.DataFrame(excel_rows)
-        # Using a unique filename to prevent conflicts
         filename = f"report_{data.get('invoice_number', 'temp')}.xlsx"
         df.to_excel(filename, index=False)
         
-        # 🧹 Auto-Delete after sending
         background_tasks.add_task(remove_file, filename)
         
         return FileResponse(filename, filename=filename, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -220,7 +298,6 @@ KEY TERMS:
         filename = f"summary_{data.get('invoice_number', 'temp')}.txt"
         with open(filename, "w", encoding="utf-8") as f: f.write(report_content)
         
-        # 🧹 Auto-Delete after sending
         background_tasks.add_task(remove_file, filename)
             
         return FileResponse(filename, filename=filename, media_type='text/plain')
